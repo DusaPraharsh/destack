@@ -32,6 +32,14 @@ type WalletTransaction = {
   };
 };
 
+interface HelpRequest {
+  id: number;
+  title: string;
+  description: string;
+  created_at: string;
+  user_wallet: string | null;
+}
+
 function safeShortenAddress(address: string | null, length: number = 4) {
   try {
     if (!address) return 'Anonymous';
@@ -53,6 +61,60 @@ export default function HomePage()
     const [accountSubTab, setAccountSubTab] = useState<'assets' | 'activity'>('assets');
     const [activeTab, setActiveTab] = useState<'account' | 'explore'>('account');
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+    const [formOpen, setFormOpen] = useState(false);
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [tags, setTags] = useState('');
+    const [requests, setRequests] = useState<HelpRequest[]>([]);
+    const [filteredRequests, setFilteredRequests] = useState<HelpRequest[]>([]);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [toastType, setToastType] = useState<'error' | 'success'>('success');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!userWalletAddress) {
+        setToastMessage('Please connect your wallet.');
+        setToastType('error');
+        setTimeout(() => setToastMessage(null), 3000);
+        return;
+        }
+
+        const { error } = await supabase.from('queries').insert([
+        {
+            title,
+            description,
+            tags,
+            created_at: new Date().toISOString(),
+            user_wallet: userWalletAddress,
+            status: 'open',
+        },
+        ]);
+
+        if (error) {
+        setToastMessage('Failed to submit request.');
+        setToastType('error');
+        setTimeout(() => setToastMessage(null), 3000);
+        return;
+        }
+
+        setTitle('');
+        setDescription('');
+        setTags('');
+        setFormOpen(false);
+
+        const { data: updatedQueries } = await supabase
+        .from('queries')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+        setRequests(updatedQueries || []);
+        setFilteredRequests(updatedQueries || []);
+
+        setToastMessage('Request submitted successfully!');
+        setToastType('success');
+        setTimeout(() => setToastMessage(null), 3000);
+    };
 
     const wallets = [
         inAppWallet({
@@ -262,6 +324,91 @@ export default function HomePage()
                         )}
                         </div>
                     </div>
+                )}
+                {activeTab === 'explore' && (
+                    <>
+                        {!wallet && (
+                        <div className="mt-6 bg-yellow-500/10 text-yellow-300 text-sm px-4 py-2 rounded mb-4 border border-yellow-300/30">
+                            You’re viewing in guest mode. Connect your wallet to post or reply.
+                        </div>
+                        )}
+
+                        <h2 className="text-2xl font-semibold mb-4 mt-10">Explore</h2>
+
+                        <div>
+                            {!formOpen && (
+                                <input
+                                type="text"
+                                placeholder="What's on your mind?"
+                                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/50"
+                                onFocus={() => setFormOpen(true)}
+                                />
+                            )}
+
+                            {formOpen && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                                <div className="bg-white/5 border border-white/10 rounded-2xl shadow-2xl w-[95%] max-w-2xl p-8 text-white">
+                                    <form onSubmit={handleSubmit} className="space-y-5">
+                                    <h2 className="text-xl font-semibold">Submit Query</h2>
+
+                                    <input
+                                        type="text"
+                                        placeholder="Title"
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        className="w-full p-4 rounded-lg bg-transparent border border-white/10 text-white placeholder-white/40"
+                                        required
+                                    />
+
+                                    <textarea
+                                        placeholder="Description"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        className="w-full p-4 rounded-lg bg-transparent border border-white/10 text-white placeholder-white/40 h-40 custom-scroll overflow-y-auto"
+                                        required
+                                    />
+
+                                    <label className="block">
+                                        <div className="relative bg-white/10 rounded-lg">
+                                        <select
+                                            value={tags}
+                                            onChange={(e) => setTags(e.target.value)}
+                                            required
+                                            className="w-full p-3 bg-transparent text-white border border-white/10 rounded-lg appearance-none pr-10 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                                        >
+                                            <option value="" disabled hidden>Select a tag</option>
+                                            <option className="bg-[#121212] text-white" value="discussion">Discussion</option>
+                                            <option className="bg-[#121212] text-white" value="dev-help">Coding</option>
+                                            <option className="bg-[#121212] text-white" value="feedback">Feedback</option>
+                                        </select>
+
+                                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white">
+                                            ▼
+                                        </div>
+                                        </div>
+                                    </label>
+
+                                    <div className="flex justify-between items-center pt-2">
+                                        <button
+                                        type="submit"
+                                        className="bg-[#49c5c5] text-black py-2 px-6 rounded-lg hover:bg-[#44dada] transition"
+                                        >
+                                        Submit
+                                        </button>
+                                        <button
+                                        type="button"
+                                        onClick={() => setFormOpen(false)}
+                                        className="text-white text-sm hover:underline"
+                                        >
+                                        Cancel
+                                        </button>
+                                    </div>
+                                    </form>
+                                </div>
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
         </div>
