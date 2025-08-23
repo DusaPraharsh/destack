@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0f1a;
+  --foreground: #ffffff;
 }
 
 @theme inline {
@@ -22,5 +22,52 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
+
+.background-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #0a0f1a 0%, #00121e 100%);
+  z-index: -3;
+}
+
+@keyframes particlesDrift {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  100% {
+    transform: translate(-30px, -20px);
+  }
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+.custom-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+.custom-scroll {
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+  scrollbar-width: thin;
+}
+
