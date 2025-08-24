@@ -92,7 +92,8 @@ export default function HomePage() {
   const [tipAmount, setTipAmount] = useState('');
   const [sendingTip, setSendingTip] = useState(false);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-
+  const isSameAddress = (a?: string | null, b?: string | null) =>
+  !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -216,7 +217,7 @@ export default function HomePage() {
       parent_id: parentId,
       content,
       user_wallet: userWalletAddress,
-      upvotes: 0,
+      upvotes: 0, // ensure default
     });
 
     if (!error) {
@@ -241,6 +242,7 @@ export default function HomePage() {
       return;
     }
 
+    // Optimistic UI update
     setReplies(prev =>
       prev.map(r => r.id === replyId ? { ...r, upvotes: r.upvotes + 1 } : r)
     );
@@ -251,6 +253,7 @@ export default function HomePage() {
       .eq('id', replyId);
 
     if (error) {
+      // Roll back if failed
       setReplies(prev =>
         prev.map(r => r.id === replyId ? { ...r, upvotes: r.upvotes - 1 } : r)
       );
@@ -264,9 +267,17 @@ export default function HomePage() {
   const renderReplies = (queryId: number, parentId: number | null = null, level = 0) => {
     return replies
       .filter(reply => reply.query_id === queryId && reply.parent_id === parentId)
-      .sort((a, b) => b.upvotes - a.upvotes || new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .sort(
+        (a, b) =>
+          b.upvotes - a.upvotes || 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
       .map(reply => (
-        <div key={reply.id} className={`ml-${level * 6} mt-4 border-l border-white/10 pl-4`}>
+        <div
+          key={reply.id}
+          style={{ marginLeft: level * 24 }} // avoids Tailwind ml-* issue
+          className="mt-4 border-l border-white/10 pl-4"
+        >
           <p className="text-white">{reply.content}</p>
           <p className="text-xs text-white/50 mt-1">
             {new Date(reply.created_at).toLocaleString()} by{' '}
@@ -275,6 +286,7 @@ export default function HomePage() {
             </span>
           </p>
 
+          {/* Upvote button */}
           <button
             className="mr-2 text-xs px-2 py-0.5 rounded-full bg-white/10 hover:bg-cyan-500/20 text-white font-medium items-center gap-1"
             onClick={(e) => {
@@ -285,11 +297,18 @@ export default function HomePage() {
             ↑ <span>{reply.upvotes}</span>
           </button>
 
-          {userWalletAddress !== reply.user_wallet && reply.user_wallet && (
+          {/* Tip button */}
+          {reply.user_wallet && !isSameAddress(userWalletAddress, reply.user_wallet) && (
             <button
-              className="ml-1 text-xs px-3 py-0.5 rounded-full bg-white/10 text-white hover:bg-cyan-500/20 text-white"
+              className="ml-1 text-xs px-3 py-0.5 rounded-full bg-white/10 text-white hover:bg-cyan-500/20"
               onClick={(e) => {
                 e.stopPropagation();
+                if (!wallet) {
+                  setToastMessage('Connect your wallet to tip.');
+                  setToastType('error');
+                  setTimeout(() => setToastMessage(null), 3000);
+                  return;
+                }
                 setTipRecipient(reply.user_wallet);
                 setShowTipModal(true);
               }}
@@ -298,6 +317,7 @@ export default function HomePage() {
             </button>
           )}
 
+          {/* Reply button */}
           <button
             className="mt-2 ml-2 text-sm px-4 py-1 rounded bg-white/10 text-white hover:bg-cyan-500/20 transition"
             onClick={(e) => {
@@ -381,6 +401,7 @@ export default function HomePage() {
   return (
     <div className="flex min-h-screen text-white">
 
+      {/* Sidebar */}
       <div className="fixed top-0 left-0 h-full w-64 bg-white/5 border-r border-white/10 p-5 flex flex-col justify-between z-20">
         <div className="flex flex-col gap-4">
           <ConnectButton client={client} wallets={wallets} 
@@ -417,6 +438,7 @@ export default function HomePage() {
         </button>
       </div>
 
+      {/* Main Content */}
       <div className="ml-64 flex-1 px-4 sm:px-6 lg:px-8 space-y-10">
         {activeTab === 'account' && (
           <div className="pt-10">
@@ -464,6 +486,7 @@ export default function HomePage() {
                 </button>
               </div>
 
+              {/* Assets Content */}
               {accountSubTab === 'assets' && (
                 <div>
                   {userWalletAddress ? (
@@ -503,6 +526,7 @@ export default function HomePage() {
                 </div>
               )}
 
+              {/* Activity Content */}
               {accountSubTab === 'activity' && (
                 <div className="mt-6">
                   <h3 className="text-white text-lg font-semibold mb-4">Recent Wallet Activity</h3>
@@ -559,6 +583,12 @@ export default function HomePage() {
                                 </span>
                               </div>
 
+                              {/* Optional: Show timestamp
+                              <div>
+                                <strong>Time:</strong>{" "}
+                                {new Date(tx.block_timestamp).toLocaleString()}
+                              </div> */}
+
                               <a
                                 href={`https://testnet.snowtrace.io/tx/${tx.hash}`}
                                 target="_blank"
@@ -587,6 +617,7 @@ export default function HomePage() {
 
             <h2 className="text-2xl font-semibold mb-4 mt-10">Explore</h2>
 
+            {/* Submit Query Box */}
             <div>
               {!formOpen && (
                 <input
@@ -661,6 +692,7 @@ export default function HomePage() {
               )}
             </div>
 
+            {/* Search Box */}
             <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 mb-4">
               <input
                 type="text"
@@ -671,6 +703,7 @@ export default function HomePage() {
               />
             </div>
 
+            {/* Queries List */}
             <div className="rounded-xl border border-white/10 bg-white/5 shadow-lg p-6 overflow-y-auto max-h-[calc(100vh-300px)] custom-scroll">
               {filteredRequests.length > 0 ? (
                 filteredRequests.map(req => (
@@ -687,11 +720,17 @@ export default function HomePage() {
                         {new Date(req.created_at).toLocaleString()} by{' '}
                         <span className="font-mono text-white/70">
                           {req.user_wallet ? safeShortenAddress(req.user_wallet, 4) : 'Anonymous'}
-                          {userWalletAddress !== req.user_wallet && req.user_wallet && (
+                          {req.user_wallet && !isSameAddress(userWalletAddress, req.user_wallet) && (
                             <button
                               className="ml-3 text-xs px-3 py-0.5 rounded-full bg-white/10 text-white hover:bg-cyan-500/20"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (!wallet) {
+                                  setToastMessage('Connect your wallet to tip.');
+                                  setToastType('error');
+                                  setTimeout(() => setToastMessage(null), 3000);
+                                  return;
+                                }
                                 setTipRecipient(req.user_wallet);
                                 setShowTipModal(true);
                               }}
@@ -746,6 +785,7 @@ export default function HomePage() {
         )}
       </div>
 
+      {/*tip box window*/}
       {showTipModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white/5 border border-white/10 rounded-2xl shadow-2xl w-[95%] max-w-md p-6 text-white">
